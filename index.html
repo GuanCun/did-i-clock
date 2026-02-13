@@ -1,43 +1,1008 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 
 <head>
   <meta charset="UTF-8" />
-  <title>TK 打卡</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <title>Tap Confirm - 打卡</title>
   <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/image/icon-192.png" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f5f5f5;
+      --bg-tertiary: #e8e8e8;
+      --text-primary: #000000;
+      --text-secondary: #666666;
+      --text-muted: #999999;
+      --border-color: #e0e0e0;
+      --success-color: #4caf50;
+      --warning-color: #ff9800;
+      --button-bg: #000000;
+      --button-text: #ffffff;
+      --button-active: #333333;
+      --button-disabled-bg: #cccccc;
+      --button-disabled-text: #666666;
+      --overlay-bg: rgba(0, 0, 0, 0.5);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #121212;
+        --bg-secondary: #1e1e1e;
+        --bg-tertiary: #2a2a2a;
+        --text-primary: #ffffff;
+        --text-secondary: #aaaaaa;
+        --text-muted: #666666;
+        --border-color: #333333;
+        --button-bg: #ffffff;
+        --button-text: #000000;
+        --button-active: #cccccc;
+        --button-disabled-bg: #333333;
+        --button-disabled-text: #666666;
+        --overlay-bg: rgba(0, 0, 0, 0.7);
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      justify-content: center;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* 顶部栏 */
+    .header {
+      display: flex;
+      justify-content: flex-end;
+      padding: 8px 0;
+    }
+
+    .settings-btn {
+      width: 40px;
+      height: 40px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 20px;
+      cursor: pointer;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.2s;
+    }
+
+    .settings-btn:active {
+      background-color: var(--bg-secondary);
+    }
+
+    /* 时间和倒计时区 */
+    .time-section {
+      text-align: center;
+      padding: 24px 0;
+    }
+
+    .current-time {
+      font-size: 48px;
+      font-weight: 200;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -2px;
+    }
+
+    .countdown {
+      margin-top: 16px;
+      font-size: 16px;
+      color: var(--text-secondary);
+      min-height: 24px;
+    }
+
+    .countdown.highlight {
+      color: var(--success-color);
+      font-weight: 500;
+    }
+
+    .countdown .icon {
+      margin-right: 6px;
+    }
+
+    /* 按钮区 */
+    .button-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .tap-button {
+      min-height: 64px;
+      padding: 16px 24px;
+      font-size: 17px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      background-color: var(--button-bg);
+      color: var(--button-text);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .tap-button:active:not(:disabled) {
+      transform: scale(0.98);
+      opacity: 0.9;
+    }
+
+    .tap-button:disabled {
+      background-color: var(--button-disabled-bg);
+      color: var(--button-disabled-text);
+      cursor: not-allowed;
+    }
+
+    .tap-button.done {
+      background-color: var(--success-color);
+      color: white;
+    }
+
+    .tap-button .btn-hint {
+      font-size: 12px;
+      font-weight: 400;
+      opacity: 0.8;
+    }
+
+    .tap-button.done .btn-hint {
+      opacity: 1;
+    }
+
+    /* 记录区 */
+    .records-section {
+      flex: 1;
+      margin-top: 8px;
+    }
+
+    .records-title {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .records-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .record-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 14px;
+      background-color: var(--bg-secondary);
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    .record-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .record-date {
+      color: var(--text-muted);
+      font-size: 12px;
+      min-width: 36px;
+    }
+
+    .record-type {
+      font-weight: 500;
+    }
+
+    .record-type.clock-in {
+      color: var(--success-color);
+    }
+
+    .record-type.clock-out {
+      color: var(--text-primary);
+    }
+
+    .record-time {
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 32px 20px;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    /* 设置弹窗 */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background-color: var(--overlay-bg);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.25s, visibility 0.25s;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-sheet {
+      width: 100%;
+      max-width: 480px;
+      background-color: var(--bg-primary);
+      border-radius: 16px 16px 0 0;
+      padding: 20px;
+      padding-bottom: calc(20px + env(safe-area-inset-bottom));
+      transform: translateY(100%);
+      transition: transform 0.3s ease-out;
+    }
+
+    .modal-overlay.active .modal-sheet {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 18px;
+      cursor: pointer;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .setting-group {
+      margin-bottom: 24px;
+    }
+
+    .setting-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+
+    .setting-options {
+      display: flex;
+      gap: 8px;
+    }
+
+    .setting-option {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid var(--border-color);
+      border-radius: 10px;
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .setting-option.active {
+      border-color: var(--button-bg);
+      background-color: var(--button-bg);
+      color: var(--button-text);
+    }
+
+    .setting-divider {
+      height: 1px;
+      background-color: var(--border-color);
+      margin: 24px 0;
+    }
+
+    .setting-special {
+      padding: 16px;
+      background-color: var(--bg-secondary);
+      border-radius: 12px;
+    }
+
+    .setting-special-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .setting-special-title {
+      font-size: 15px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .setting-special-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* Toggle switch */
+    .toggle {
+      position: relative;
+      width: 50px;
+      height: 30px;
+    }
+
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: var(--bg-tertiary);
+      border-radius: 30px;
+      transition: 0.3s;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 24px;
+      width: 24px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      border-radius: 50%;
+      transition: 0.3s;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .toggle input:checked+.toggle-slider {
+      background-color: var(--warning-color);
+    }
+
+    .toggle input:checked+.toggle-slider:before {
+      transform: translateX(20px);
+    }
+
+    /* Work hours input */
+    .work-hours-input {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .work-hours-input input {
+      width: 60px;
+      padding: 10px 12px;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 16px;
+      text-align: center;
+      font-weight: 500;
+    }
+
+    .work-hours-input input:focus {
+      outline: none;
+      border-color: var(--button-bg);
+    }
+
+    .work-hours-input span {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+  </style>
 </head>
 
 <body>
-  <h1>TK 打卡</h1>
-  <button onclick="checkin('上班')">上班</button>
-  <button onclick="checkin('下班')">下班</button>
+  <div class="container">
+    <!-- 顶部栏 -->
+    <header class="header">
+      <button class="settings-btn" id="settingsBtn" aria-label="设置">⚙️</button>
+    </header>
+
+    <!-- 时间区 -->
+    <section class="time-section">
+      <div class="current-time" id="currentTime">--:--</div>
+      <div class="countdown" id="countdown"></div>
+    </section>
+
+    <!-- 按钮区 -->
+    <section class="button-section">
+      <button class="tap-button" id="clockInBtn">
+        <span class="btn-text">上班打卡</span>
+      </button>
+      <button class="tap-button" id="clockOutBtn">
+        <span class="btn-text">下班打卡</span>
+        <span class="btn-hint" id="clockOutHint"></span>
+      </button>
+    </section>
+
+    <!-- 记录区 -->
+    <section class="records-section">
+      <div class="records-title">最近记录</div>
+      <div class="records-list" id="recordsList">
+        <div class="empty-state">暂无记录</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 设置弹窗 -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <span class="modal-title">设置</span>
+        <button class="modal-close" id="closeSettings">✕</button>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-label">下班提醒时间</div>
+        <div class="setting-options" id="reminderOptions">
+          <button class="setting-option" data-value="5">5 分钟</button>
+          <button class="setting-option" data-value="10">10 分钟</button>
+          <button class="setting-option" data-value="15">15 分钟</button>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-label">工作时长</div>
+        <div class="work-hours-input">
+          <input type="number" id="workHoursInput" min="1" max="24" value="9" />
+          <span>小时</span>
+        </div>
+      </div>
+
+      <div class="setting-divider"></div>
+
+      <div class="setting-group">
+        <div class="setting-label">今日特殊操作</div>
+        <div class="setting-special">
+          <div class="setting-special-header">
+            <span class="setting-special-title">⚡ 提前下班模式</span>
+            <label class="toggle">
+              <input type="checkbox" id="earlyLeaveToggle" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="setting-special-desc">开启后可立即打卡下班（仅当天有效）</div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
-    // 注册 Service Worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js');
+    // ========== 常量 ==========
+    const RECORDS_KEY = 'dailyRecords';
+    const SETTINGS_KEY = 'settings';
+    const MAX_DAYS = 30;
+
+    // ========== 默认设置 ==========
+    const DEFAULT_SETTINGS = {
+      reminderMinutes: 5,
+      workHours: 9,
+      earlyLeaveDate: null // 提前下班的日期（仅当天有效）
+    };
+
+    // ========== 全局状态 ==========
+    let settings = { ...DEFAULT_SETTINGS };
+    let records = {};
+    let countdownTimer = null;
+    let reminderTimer = null;
+    let canLeaveTimer = null;
+
+    // ========== 工具函数 ==========
+    function getTodayKey() {
+      return new Date().toISOString().split('T')[0];
     }
 
-    async function checkin(type) {
-      const now = new Date();
-      const time = now.toLocaleString();
+    function formatTimeHHMM(date) {
+      return date.toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    }
 
-      // 存本地（只保留 30 条）
-      const logs = JSON.parse(localStorage.getItem('tk_logs') || '[]');
-      logs.unshift({ type, time });
-      localStorage.setItem('tk_logs', JSON.stringify(logs.slice(0, 30)));
+    function formatDuration(ms) {
+      if (ms <= 0) return '0:00:00';
+      const hours = Math.floor(ms / 3600000);
+      const mins = Math.floor((ms % 3600000) / 60000);
+      const secs = Math.floor((ms % 60000) / 1000);
+      return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
 
-      // 请求通知权限
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted') {
-        const reg = await navigator.serviceWorker.ready;
-        reg.showNotification('TK 打卡成功', {
-          body: `${time} ${type} 已记录`,
+    function formatWorkDuration(ms) {
+      const hours = Math.floor(ms / 3600000);
+      const mins = Math.floor((ms % 3600000) / 60000);
+      return `${hours}h${mins}m`;
+    }
+
+    // ========== 初始化 ==========
+    function init() {
+      registerServiceWorker();
+      requestNotificationPermission();
+      loadData();
+      cleanOldRecords();
+      renderUI();
+      startClock();
+      bindEvents();
+      scheduleReminders();
+    }
+
+    function registerServiceWorker() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(err => {
+          console.error('SW registration failed:', err);
         });
       }
-
-      alert(`${type} 已记录`);
     }
+
+    async function requestNotificationPermission() {
+      if ('Notification' in window && Notification.permission === 'default') {
+        await Notification.requestPermission();
+      }
+    }
+
+    // ========== 数据操作 ==========
+    function loadData() {
+      try {
+        const savedRecords = localStorage.getItem(RECORDS_KEY);
+        records = savedRecords ? JSON.parse(savedRecords) : {};
+
+        const savedSettings = localStorage.getItem(SETTINGS_KEY);
+        if (savedSettings) {
+          settings = { ...DEFAULT_SETTINGS, ...JSON.parse(savedSettings) };
+        }
+
+        // 检查提前下班模式是否过期（只当天有效）
+        if (settings.earlyLeaveDate !== getTodayKey()) {
+          settings.earlyLeaveDate = null;
+          saveSettings();
+        }
+      } catch (err) {
+        console.error('Failed to load data:', err);
+        records = {};
+        settings = { ...DEFAULT_SETTINGS };
+      }
+    }
+
+    function saveRecords() {
+      try {
+        localStorage.setItem(RECORDS_KEY, JSON.stringify(records));
+      } catch (err) {
+        console.error('Failed to save records:', err);
+      }
+    }
+
+    function saveSettings() {
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      } catch (err) {
+        console.error('Failed to save settings:', err);
+      }
+    }
+
+    function cleanOldRecords() {
+      const cutoff = Date.now() - MAX_DAYS * 24 * 60 * 60 * 1000;
+      let cleaned = false;
+      for (const date in records) {
+        if (new Date(date).getTime() < cutoff) {
+          delete records[date];
+          cleaned = true;
+        }
+      }
+      if (cleaned) saveRecords();
+    }
+
+    // ========== 今日状态 ==========
+    function getTodayRecord() {
+      return records[getTodayKey()] || null;
+    }
+
+    function getTodayStatus() {
+      const record = getTodayRecord();
+      if (!record) {
+        return { clockedIn: false, clockedOut: false, clockInTime: null, expectedOut: null };
+      }
+
+      return {
+        clockedIn: !!record.clockIn,
+        clockedOut: !!record.clockOut,
+        clockInTime: record.clockIn,
+        expectedOut: record.expectedOut
+      };
+    }
+
+    function canClockOut() {
+      const status = getTodayStatus();
+      if (!status.clockedIn || status.clockedOut) return false;
+
+      // 提前下班模式
+      if (settings.earlyLeaveDate === getTodayKey()) return true;
+
+      // 正常检查时间
+      return Date.now() >= status.expectedOut;
+    }
+
+    function isEarlyLeaveEnabled() {
+      return settings.earlyLeaveDate === getTodayKey();
+    }
+
+    // ========== 打卡操作 ==========
+    function clockIn() {
+      const now = Date.now();
+      const expectedOut = now + settings.workHours * 60 * 60 * 1000;
+
+      records[getTodayKey()] = {
+        clockIn: now,
+        clockOut: null,
+        expectedOut: expectedOut
+      };
+
+      saveRecords();
+      scheduleReminders();
+
+      const expectedTimeStr = formatTimeHHMM(new Date(expectedOut));
+      sendNotification('打卡成功', `已上班打卡，预计 ${expectedTimeStr} 可下班`);
+    }
+
+    function clockOut() {
+      const record = getTodayRecord();
+      if (!record || !record.clockIn) return;
+
+      record.clockOut = Date.now();
+      records[getTodayKey()] = record;
+      saveRecords();
+
+      clearTimers();
+
+      const duration = record.clockOut - record.clockIn;
+      sendNotification('打卡成功', `下班打卡成功，今日工时 ${formatWorkDuration(duration)}`);
+    }
+
+    // ========== UI 渲染 ==========
+    function renderUI() {
+      renderButtons();
+      renderCountdown();
+      renderRecords();
+      renderSettings();
+    }
+
+    function renderButtons() {
+      const status = getTodayStatus();
+      const clockInBtn = document.getElementById('clockInBtn');
+      const clockOutBtn = document.getElementById('clockOutBtn');
+      const clockOutHint = document.getElementById('clockOutHint');
+
+      // 上班按钮
+      if (status.clockedIn) {
+        clockInBtn.disabled = true;
+        clockInBtn.classList.add('done');
+        clockInBtn.querySelector('.btn-text').textContent = '✓ 已上班打卡';
+      } else {
+        clockInBtn.disabled = false;
+        clockInBtn.classList.remove('done');
+        clockInBtn.querySelector('.btn-text').textContent = '上班打卡';
+      }
+
+      // 下班按钮
+      if (status.clockedOut) {
+        clockOutBtn.disabled = true;
+        clockOutBtn.classList.add('done');
+        clockOutBtn.querySelector('.btn-text').textContent = '✓ 已下班打卡';
+        clockOutHint.textContent = '';
+      } else if (!status.clockedIn) {
+        clockOutBtn.disabled = true;
+        clockOutBtn.classList.remove('done');
+        clockOutBtn.querySelector('.btn-text').textContent = '下班打卡';
+        clockOutHint.textContent = '请先上班打卡';
+      } else if (canClockOut()) {
+        clockOutBtn.disabled = false;
+        clockOutBtn.classList.remove('done');
+        if (isEarlyLeaveEnabled()) {
+          clockOutBtn.querySelector('.btn-text').textContent = '⚡ 提前下班';
+        } else {
+          clockOutBtn.querySelector('.btn-text').textContent = '下班打卡';
+        }
+        clockOutHint.textContent = '';
+      } else {
+        clockOutBtn.disabled = true;
+        clockOutBtn.classList.remove('done');
+        clockOutBtn.querySelector('.btn-text').textContent = '下班打卡';
+        const expectedTimeStr = formatTimeHHMM(new Date(status.expectedOut));
+        clockOutHint.textContent = `🔒 ${expectedTimeStr} 后可用`;
+      }
+    }
+
+    function renderCountdown() {
+      const countdownEl = document.getElementById('countdown');
+      const status = getTodayStatus();
+
+      if (!status.clockedIn) {
+        countdownEl.textContent = '';
+        countdownEl.classList.remove('highlight');
+        return;
+      }
+
+      if (status.clockedOut) {
+        countdownEl.textContent = '🎉 今日打卡完成';
+        countdownEl.classList.add('highlight');
+        return;
+      }
+
+      const remaining = status.expectedOut - Date.now();
+      if (remaining <= 0) {
+        countdownEl.innerHTML = '<span class="icon">🎉</span>可以下班啦！';
+        countdownEl.classList.add('highlight');
+      } else {
+        countdownEl.innerHTML = `<span class="icon">⏱️</span>距离下班还有 ${formatDuration(remaining)}`;
+        countdownEl.classList.remove('highlight');
+      }
+    }
+
+    function renderRecords() {
+      const listEl = document.getElementById('recordsList');
+
+      // 将记录转换为平铺列表
+      const flatRecords = [];
+      for (const date in records) {
+        const r = records[date];
+        if (r.clockIn) {
+          flatRecords.push({ date, type: 'clock-in', timestamp: r.clockIn });
+        }
+        if (r.clockOut) {
+          flatRecords.push({ date, type: 'clock-out', timestamp: r.clockOut });
+        }
+      }
+
+      // 按时间倒序
+      flatRecords.sort((a, b) => b.timestamp - a.timestamp);
+      const recentRecords = flatRecords.slice(0, 10);
+
+      if (recentRecords.length === 0) {
+        listEl.innerHTML = '<div class="empty-state">暂无记录</div>';
+        return;
+      }
+
+      const today = getTodayKey();
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+      listEl.innerHTML = recentRecords.map(record => {
+        const time = new Date(record.timestamp);
+        const timeStr = formatTimeHHMM(time);
+        const typeText = record.type === 'clock-in' ? '上班' : '下班';
+
+        let dateLabel;
+        if (record.date === today) {
+          dateLabel = '今天';
+        } else if (record.date === yesterday) {
+          dateLabel = '昨天';
+        } else {
+          const d = new Date(record.date);
+          dateLabel = `${d.getMonth() + 1}/${d.getDate()}`;
+        }
+
+        return `
+          <div class="record-item">
+            <div class="record-left">
+              <span class="record-date">${dateLabel}</span>
+              <span class="record-type ${record.type}">${typeText}</span>
+            </div>
+            <span class="record-time">${timeStr}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderSettings() {
+      // 提醒时间选项
+      document.querySelectorAll('#reminderOptions .setting-option').forEach(btn => {
+        const value = parseInt(btn.dataset.value);
+        btn.classList.toggle('active', value === settings.reminderMinutes);
+      });
+
+      // 工作时长
+      document.getElementById('workHoursInput').value = settings.workHours;
+
+      // 提前下班开关
+      document.getElementById('earlyLeaveToggle').checked = isEarlyLeaveEnabled();
+    }
+
+    // ========== 时钟 ==========
+    function startClock() {
+      updateClock();
+      setInterval(() => {
+        updateClock();
+        renderCountdown();
+        renderButtons(); // 检查是否到达下班时间
+      }, 1000);
+    }
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('currentTime').textContent = formatTimeHHMM(now);
+    }
+
+    // ========== 定时提醒 ==========
+    function scheduleReminders() {
+      clearTimers();
+
+      const status = getTodayStatus();
+      if (!status.clockedIn || status.clockedOut) return;
+
+      const now = Date.now();
+      const reminderTime = status.expectedOut - settings.reminderMinutes * 60 * 1000;
+
+      // 提前X分钟提醒
+      if (reminderTime > now) {
+        reminderTimer = setTimeout(() => {
+          sendNotification('下班提醒', `还有 ${settings.reminderMinutes} 分钟可以下班啦 🎉`);
+        }, reminderTime - now);
+      }
+
+      // 到达下班时间提醒
+      if (status.expectedOut > now) {
+        canLeaveTimer = setTimeout(() => {
+          sendNotification('可以下班了', '现在可以打卡下班了 🎉');
+          renderUI();
+        }, status.expectedOut - now);
+      }
+    }
+
+    function clearTimers() {
+      if (reminderTimer) clearTimeout(reminderTimer);
+      if (canLeaveTimer) clearTimeout(canLeaveTimer);
+      reminderTimer = null;
+      canLeaveTimer = null;
+    }
+
+    // ========== 通知 ==========
+    async function sendNotification(title, body) {
+      if (!('Notification' in window) || Notification.permission !== 'granted') {
+        return;
+      }
+
+      try {
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.ready;
+          await reg.showNotification(title, {
+            body,
+            icon: '/image/icon-192.png',
+            badge: '/image/icon-192.png',
+            vibrate: [200, 100, 200]
+          });
+        } else {
+          new Notification(title, { body });
+        }
+      } catch (err) {
+        console.error('Notification failed:', err);
+      }
+    }
+
+    // ========== 事件绑定 ==========
+    function bindEvents() {
+      // 上班打卡
+      document.getElementById('clockInBtn').addEventListener('click', () => {
+        const status = getTodayStatus();
+        if (status.clockedIn) return;
+        clockIn();
+        renderUI();
+      });
+
+      // 下班打卡
+      document.getElementById('clockOutBtn').addEventListener('click', () => {
+        if (!canClockOut()) return;
+        clockOut();
+        renderUI();
+      });
+
+      // 打开设置
+      document.getElementById('settingsBtn').addEventListener('click', () => {
+        document.getElementById('settingsModal').classList.add('active');
+      });
+
+      // 关闭设置
+      document.getElementById('closeSettings').addEventListener('click', () => {
+        document.getElementById('settingsModal').classList.remove('active');
+      });
+
+      // 点击遮罩关闭
+      document.getElementById('settingsModal').addEventListener('click', (e) => {
+        if (e.target.id === 'settingsModal') {
+          document.getElementById('settingsModal').classList.remove('active');
+        }
+      });
+
+      // 提醒时间选择
+      document.querySelectorAll('#reminderOptions .setting-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+          settings.reminderMinutes = parseInt(btn.dataset.value);
+          saveSettings();
+          renderSettings();
+          scheduleReminders();
+        });
+      });
+
+      // 工作时长
+      document.getElementById('workHoursInput').addEventListener('change', (e) => {
+        const value = parseInt(e.target.value);
+        if (value >= 1 && value <= 24) {
+          settings.workHours = value;
+          saveSettings();
+        } else {
+          e.target.value = settings.workHours;
+        }
+      });
+
+      // 提前下班开关
+      document.getElementById('earlyLeaveToggle').addEventListener('change', (e) => {
+        if (e.target.checked) {
+          settings.earlyLeaveDate = getTodayKey();
+        } else {
+          settings.earlyLeaveDate = null;
+        }
+        saveSettings();
+        renderUI();
+      });
+    }
+
+    // ========== 启动 ==========
+    init();
   </script>
 </body>
 
