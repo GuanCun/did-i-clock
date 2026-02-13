@@ -171,6 +171,16 @@
       color: white;
     }
 
+    .tap-button.status-late {
+      background-color: #ff9500;
+      color: white;
+    }
+
+    .tap-button.status-abnormal {
+      background-color: #ff3b30;
+      color: white;
+    }
+
     .tap-button .btn-hint {
       font-size: 12px;
       font-weight: 400;
@@ -234,6 +244,23 @@
 
     .record-type.clock-out {
       color: var(--text-primary);
+    }
+
+    .record-badge {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .record-badge.late {
+      background-color: rgba(255, 149, 0, 0.15);
+      color: #ff9500;
+    }
+
+    .record-badge.abnormal {
+      background-color: rgba(255, 59, 48, 0.15);
+      color: #ff3b30;
     }
 
     .record-time {
@@ -684,12 +711,44 @@
     }
 
     // ========== 打卡操作 ==========
+    function getClockInStatus(timestamp) {
+      const date = new Date(timestamp);
+      const hour = date.getHours();
+      const minute = date.getMinutes();
+
+      if (hour === 8 || (hour === 9 && minute === 0)) {
+        return { type: 'normal', label: '', emoji: '', color: '' };
+      } else if (hour === 9 && minute > 0) {
+        return { type: 'late', label: '迟到', emoji: '⚠️', color: 'late' };
+      } else {
+        return { type: 'abnormal', label: '异常', emoji: '🔴', color: 'abnormal' };
+      }
+    }
+
+    function calculateExpectedOffTime(clockInTime) {
+      const clockInDate = new Date(clockInTime);
+      const hour = clockInDate.getHours();
+      const minute = clockInDate.getMinutes();
+
+      // 有效时间内：实际时间 + 工作时长
+      if (hour === 8 || (hour === 9 && minute === 0)) {
+        return clockInTime + settings.workHours * 60 * 60 * 1000;
+      }
+
+      // 异常时间：按 09:00 计算
+      const baseTime = new Date(clockInDate);
+      baseTime.setHours(9, 0, 0, 0);
+      return baseTime.getTime() + settings.workHours * 60 * 60 * 1000;
+    }
+
     function clockIn() {
       const now = Date.now();
-      const expectedOut = now + settings.workHours * 60 * 60 * 1000;
+      const status = getClockInStatus(now);
+      const expectedOut = calculateExpectedOffTime(now);
 
       records[getTodayKey()] = {
         clockIn: now,
+        clockInStatus: status,
         clockOut: null,
         expectedOut: expectedOut
       };
@@ -724,33 +783,41 @@
     }
 
     function renderButtons() {
-      const status = getTodayStatus();
+      const record = getTodayRecord();
       const clockInBtn = document.getElementById('clockInBtn');
       const clockOutBtn = document.getElementById('clockOutBtn');
       const clockOutHint = document.getElementById('clockOutHint');
 
       // 上班按钮
-      if (status.clockedIn) {
+      if (record && record.clockIn) {
         clockInBtn.disabled = true;
-        clockInBtn.classList.add('done');
-        clockInBtn.querySelector('.btn-text').textContent = '✓ 已上班打卡';
+
+        if (record.clockInStatus && record.clockInStatus.type !== 'normal') {
+          const status = record.clockInStatus;
+          clockInBtn.classList.remove('done');
+          clockInBtn.classList.add(`status-${status.type}`);
+          clockInBtn.querySelector('.btn-text').textContent = `${status.emoji} 已上班打卡（${status.label}）`;
+        } else {
+          clockInBtn.classList.add('done');
+          clockInBtn.querySelector('.btn-text').textContent = '✓ 已上班打卡';
+        }
       } else {
         clockInBtn.disabled = false;
-        clockInBtn.classList.remove('done');
+        clockInBtn.className = 'tap-button';
         clockInBtn.querySelector('.btn-text').textContent = '上班打卡';
       }
 
       // 下班按钮
-      if (status.clockedOut) {
-        clockOutBtn.disabled = true;
-        clockOutBtn.classList.add('done');
-        clockOutBtn.querySelector('.btn-text').textContent = '✓ 已下班打卡';
-        clockOutHint.textContent = '';
-      } else if (!status.clockedIn) {
+      if (!record || !record.clockIn) {
         clockOutBtn.disabled = true;
         clockOutBtn.classList.remove('done');
         clockOutBtn.querySelector('.btn-text').textContent = '下班打卡';
         clockOutHint.textContent = '请先上班打卡';
+      } else if (record.clockOut) {
+        clockOutBtn.disabled = true;
+        clockOutBtn.classList.add('done');
+        clockOutBtn.querySelector('.btn-text').textContent = '✓ 已下班打卡';
+        clockOutHint.textContent = '';
       } else if (canClockOut()) {
         clockOutBtn.disabled = false;
         clockOutBtn.classList.remove('done');
@@ -764,7 +831,7 @@
         clockOutBtn.disabled = true;
         clockOutBtn.classList.remove('done');
         clockOutBtn.querySelector('.btn-text').textContent = '下班打卡';
-        const expectedTimeStr = formatTimeHHMM(new Date(status.expectedOut));
+        const expectedTimeStr = formatTimeHHMM(new Date(record.expectedOut));
         clockOutHint.textContent = `🔒 ${expectedTimeStr} 后可用`;
       }
     }
@@ -772,6 +839,7 @@
     function renderCountdown() {
       const countdownEl = document.getElementById('countdown');
       const status = getTodayStatus();
+      const record = getTodayRecord();
 
       if (!status.clockedIn) {
         countdownEl.textContent = '';
@@ -790,7 +858,11 @@
         countdownEl.innerHTML = '<span class="icon">🎉</span>可以下班啦！';
         countdownEl.classList.add('highlight');
       } else {
-        countdownEl.innerHTML = `<span class="icon">⏱️</span>距离下班还有 ${formatDuration(remaining)}`;
+        let hint = '';
+        if (record && record.clockInStatus && record.clockInStatus.type !== 'normal') {
+          hint = '<span style="font-size: 12px; opacity: 0.7;">（按规定时间计算）</span>';
+        }
+        countdownEl.innerHTML = `<span class="icon">⏱️</span>距离下班还有 ${formatDuration(remaining)} ${hint}`;
         countdownEl.classList.remove('highlight');
       }
     }
@@ -837,11 +909,22 @@
           dateLabel = `${d.getMonth() + 1}/${d.getDate()}`;
         }
 
+        // 检查打卡状态
+        let statusBadge = '';
+        if (record.type === 'clock-in') {
+          const dayRecord = records[record.date];
+          if (dayRecord && dayRecord.clockInStatus && dayRecord.clockInStatus.type !== 'normal') {
+            const status = dayRecord.clockInStatus;
+            statusBadge = `<span class="record-badge ${status.type}">${status.emoji} ${status.label}</span>`;
+          }
+        }
+
         return `
           <div class="record-item">
             <div class="record-left">
               <span class="record-date">${dateLabel}</span>
               <span class="record-type ${record.type}">${typeText}</span>
+              ${statusBadge}
             </div>
             <span class="record-time">${timeStr}</span>
           </div>
