@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>TK 打卡</title>
+  <link rel="manifest" href="/manifest.json" />
+</head>
+
+<body>
+  <h1>TK 打卡</h1>
+  <button onclick="checkin('上班')">上班</button>
+  <button onclick="checkin('下班')">下班</button>
+
+  <script>
+    // 注册 Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+
+    async function checkin(type) {
+      const now = new Date();
+      const time = now.toLocaleString();
+
+      // 存本地（只保留 30 条）
+      const logs = JSON.parse(localStorage.getItem('tk_logs') || '[]');
+      logs.unshift({ type, time });
+      localStorage.setItem('tk_logs', JSON.stringify(logs.slice(0, 30)));
+
+      // 请求通知权限
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        const reg = await navigator.serviceWorker.ready;
+        reg.showNotification('TK 打卡成功', {
+          body: `${time} ${type} 已记录`,
+        });
+      }
+
+      alert(`${type} 已记录`);
+    }
+  </script>
+</body>
+
+</html>
